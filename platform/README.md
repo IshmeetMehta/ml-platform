@@ -33,14 +33,16 @@ Replace YOUR_CLUSTER_NAME with your desired name for the cluster and adjust othe
 ```shell
 gcloud container clusters create YOUR_CLUSTER_NAME \
     --addons GCSFuseCsiDriver \
-    --node-count 3 \
+    --region <YOUR_REGION>\
+    --num-nodes 3 \
     --machine-type e2-medium \
-    --node-pool default-pool
+    --workload-pool=<YOUR_PROJECT_ID>.svc.id.goog
 ```
 
 Step 4: Add the GPU node pool with the h200 (A3) machine type and NVIDIA drivers
 
 Replace gpu-pool with your desired name for the GPU node pool. Adjust the --node-count and other parameters as needed. Ensure the zone supports the chosen machine type and GPU accelerators.
+
 ```shell
 gcloud container node-pools create gpu-pool \
     --cluster=YOUR_CLUSTER_NAME \
@@ -82,6 +84,7 @@ gcloud container node-pools update gpu-pool \
     --location=YOUR_ZONE \
     --enable-autoupgrade
 ```
+
 (Optional) Enable NVIDIA GPU Driver Installer Addon (for more control):
 
 ```shell
@@ -117,7 +120,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi 
+      storage: 1Gi
   storageClassName: gcsfuse
   volumeMode: Filesystem
 Pod Definition - gcs-pod.yaml:
@@ -152,6 +155,81 @@ Verify the availability of the h200 (or its equivalent A3 series) machine type a
 GKE manages NVIDIA driver compatibility. Rely on GKE's mechanisms for driver management.
 Test any manual upgrades in a non-production environment first.
 
-
 ### Install run-ai components
 
+### Pre-requistes
+
+1.
+
+```shell
+kubectl apply -f manifests/storageclass-local.yaml
+```
+
+```shell
+kubectl patch storageclass local-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+2. Apply token registry-creds to the cluster .
+
+Note: Apply your registry-creds as per the instruction provided by Nvidia
+
+```shell
+TOKEN= ''
+```
+
+```shell
+kubectl create namespace runai-backend
+kubectl create secret docker-registry runai-reg-creds --docker-server=https://runai.jfrog.io --docker-username=self-hosted-image-puller-prod --docker-password=$TOKEN --docker-email=support@run.ai --namespace=runai-backend
+```
+
+(Optional) Use below commands if you are story the registry creds in the yaml file
+
+```shell
+kubectl create namespace runai-backend
+kubectl apply -f runai-reg-creds.yaml
+```
+
+### Install the Control Plane
+
+```shell
+helm repo add runai-backend https://runai.jfrog.io/artifactory/cp-charts-prod
+helm repo update
+helm upgrade -i runai-backend -n runai-backend runai-backend/control-plane --version "~2.20.0" \
+    --set global.domain=<Domain>  #
+```
+
+You would see run-ai components being spinned up in the runai-backend namespace.
+
+```shell
+ kubectl get pods -n runai-backend
+NAME                                                   READY   STATUS              RESTARTS   AGE
+keycloak-0                                             0/1     Pending             0          25s
+runai-backend-assets-service-8fc8fc676-tmc6j           0/1     Init:0/1            0          25s
+runai-backend-audit-service-5769656dcb-68rbw           0/1     Init:0/1            0          21s
+runai-backend-authorization-6d6788b4d5-rvlft           0/1     Init:0/1            0          24s
+runai-backend-backend-74888f9-hw85q                    0/1     Init:0/2            0          24s
+runai-backend-cli-exposer-57ff744bb8-gxz7z             1/1     Running             0          21s
+runai-backend-cluster-service-98567c5b4-zgq7s          0/1     Pending             0          21s
+runai-backend-datavolumes-69b7bfb5c5-vc4mb             0/1     Init:0/1            0          20s
+runai-backend-frontend-766d7f89b7-q4m8k                0/1     ContainerCreating   0          20s
+runai-backend-grafana-67fb7f88b-spqjh                  0/2     Init:0/1            0          25s
+runai-backend-identity-manager-9f5dbf669-pn9pk         0/1     Init:0/1            0          25s
+runai-backend-k8s-objects-tracker-7b8cc8cbfc-jrvgj     0/1     Init:0/1            0          20s
+runai-backend-metrics-service-756b4b9d4d-hqg5m         0/1     Init:0/2            0          22s
+runai-backend-notifications-proxy-95f7964b9-9d2tc      1/1     Running             0          24s
+runai-backend-notifications-service-5d7c5574d8-k6tzh   0/1     Init:0/1            0          25s
+runai-backend-org-unit-helper-5bb4cb657-5cxqv          0/1     Pending             0          20s
+runai-backend-org-unit-service-86b78df47b-cgnf2        0/1     Init:0/1            0          24s
+runai-backend-policy-service-57db4f7455-vk558          0/1     Pending             0          20s
+runai-backend-postgresql-0                             0/1     Pending             0          25s
+runai-backend-redis-queue-master-0                     0/1     Pending             0          25s
+runai-backend-redoc-777c6f6c96-8q2q2                   1/1     Running             0          20s
+runai-backend-tenants-manager-6dc567c474-2jzhm         0/2     Pending             0          19s
+runai-backend-thanos-query-6bd5b84576-krm8j            0/1     Running             0          21s
+runai-backend-thanos-receive-0                         0/1     Pending             0          25s
+runai-backend-traefik-5974bccfbc-65cvd                 0/1     Pending             0          20s
+runai-backend-workloads-7cfdff78b9-mcgfh               0/1     Init:0/1            0          25s
+runai-backend-workloads-helper-6486784bcd-kzbdx        0/1     Init:0/1            0          20s
+```
+
+### Install the run-ai cluster
