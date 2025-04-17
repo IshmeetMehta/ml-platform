@@ -102,7 +102,15 @@ gcloud container node-pools upgrade gpu-pool \
     --node-version=latest
 ```
 
-Next Steps (Example - Mounting a GCS Bucket):
+### Mounting a GCS Bucket
+
+1. Create a GCS bucket (if you haven't already).
+
+```shell
+gsutil mb -p <YOUR_PROJECT_ID> gs://<YOUR_BUCKET_NAME>
+```
+
+2. Mount the bucket using the gcsfuse-csi-driver addon.
 
 After creating the cluster, you can deploy workloads that utilize the GCS FUSE CSI driver to mount GCS buckets. Here are example manifests:
 
@@ -123,8 +131,9 @@ spec:
       storage: 1Gi
   storageClassName: gcsfuse
   volumeMode: Filesystem
-Pod Definition - gcs-pod.yaml:
 ```
+
+Pod Definition - gcs-pod.yaml:
 
 YAML
 
@@ -169,6 +178,21 @@ kubectl apply -f manifests/storageclass-local.yaml
 kubectl patch storageclass local-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 ```
 
+```shell
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-cluster-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 110Gi
+  storageClassName: local-storage
+
+```
 2. Apply token registry-creds to the cluster .
 
 Note: Apply your registry-creds as per the instruction provided by Nvidia
