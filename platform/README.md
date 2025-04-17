@@ -41,14 +41,15 @@ gcloud container clusters create YOUR_CLUSTER_NAME \
 Step 4: Add the GPU node pool with the h200 (A3) machine type and NVIDIA drivers
 
 Replace gpu-pool with your desired name for the GPU node pool. Adjust the --node-count and other parameters as needed. Ensure the zone supports the chosen machine type and GPU accelerators.
-
 ```shell
 gcloud container node-pools create gpu-pool \
     --cluster=YOUR_CLUSTER_NAME \
-    --accelerator type=nvidia-h100-80gb,count=8 \
+    --project=PROJECT_ID \
+    --accelerator type=nvidia-h100-80gb,count=8,gpu-driver-version=latest  \
+    --location=REGION \
+    --node-locations=REGION-a \
     --machine-type=a3-highgpu-8g \
     --node-count=1 \
-    --location=YOUR_ZONE
 ```
 
 Note: The h200 machine type is likely part of the A3 series. The example uses a3-highgpu-8g which features NVIDIA H100 GPUs. Update the --machine-type and --accelerator flags based on the actual H200 configuration and availability in your chosen zone.
@@ -81,7 +82,6 @@ gcloud container node-pools update gpu-pool \
     --location=YOUR_ZONE \
     --enable-autoupgrade
 ```
-
 (Optional) Enable NVIDIA GPU Driver Installer Addon (for more control):
 
 ```shell
@@ -117,7 +117,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi # Placeholder, doesn't limit GCS usage
+      storage: 1Gi 
   storageClassName: gcsfuse
   volumeMode: Filesystem
 Pod Definition - gcs-pod.yaml:
@@ -151,3 +151,7 @@ Important Considerations:
 Verify the availability of the h200 (or its equivalent A3 series) machine type and GPU accelerators in your chosen zone.
 GKE manages NVIDIA driver compatibility. Rely on GKE's mechanisms for driver management.
 Test any manual upgrades in a non-production environment first.
+
+
+### Install run-ai components
+
