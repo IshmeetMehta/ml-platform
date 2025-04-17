@@ -104,6 +104,8 @@ gcloud container node-pools upgrade gpu-pool \
 
 ### Mounting a GCS Bucket
 
+<TODO> Update these instructions to show how to mount GCS bucket on GKE cluster.
+
 1. Create a GCS bucket (if you haven't already).
 
 ```shell
@@ -193,6 +195,7 @@ spec:
   storageClassName: local-storage
 
 ```
+
 2. Apply token registry-creds to the cluster .
 
 Note: Apply your registry-creds as per the instruction provided by Nvidia
