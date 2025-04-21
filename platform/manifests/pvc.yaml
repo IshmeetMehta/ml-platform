@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: runai-pvc  # Choose a unique name for your PersistentVolumeClaim
+spec:
+  accessModes:
+    - ReadWriteOnce  # Must match the accessModes in your PV
+  resources:
+    requests:
+      storage: 150Gi
