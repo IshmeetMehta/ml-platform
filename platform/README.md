@@ -46,32 +46,9 @@ Replace gpu-pool with your desired name for the GPU node pool. Adjust the --node
 Locations for H100
 
 NAME ZONE DESCRIPTION
-nvidia-h100-80gb us-central1-a NVIDIA H100 80GB
-nvidia-h100-80gb us-central1-b NVIDIA H100 80GB
-nvidia-h100-80gb us-central1-c NVIDIA H100 80GB
-nvidia-h100-80gb europe-west1-b NVIDIA H100 80GB
-nvidia-h100-80gb europe-west1-c NVIDIA H100 80GB
-nvidia-h100-80gb us-west1-a NVIDIA H100 80GB
-nvidia-h100-80gb us-west1-b NVIDIA H100 80GB
-nvidia-h100-80gb asia-east1-c NVIDIA H100 80GB
-nvidia-h100-80gb asia-northeast1-b NVIDIA H100 80GB
-nvidia-h100-80gb asia-southeast1-b NVIDIA H100 80GB
-nvidia-h100-80gb asia-southeast1-c NVIDIA H100 80GB
 nvidia-h100-80gb us-east4-a NVIDIA H100 80GB
 nvidia-h100-80gb us-east4-b NVIDIA H100 80GB
 nvidia-h100-80gb us-east4-c NVIDIA H100 80GB
-nvidia-h100-80gb australia-southeast1-c NVIDIA H100 80GB
-nvidia-h100-80gb europe-west2-b NVIDIA H100 80GB
-nvidia-h100-80gb europe-west3-c NVIDIA H100 80GB
-nvidia-h100-80gb europe-west3-a NVIDIA H100 80GB
-nvidia-h100-80gb asia-south1-c NVIDIA H100 80GB
-nvidia-h100-80gb europe-west4-c NVIDIA H100 80GB
-nvidia-h100-80gb europe-west4-b NVIDIA H100 80GB
-nvidia-h100-80gb europe-north1-c NVIDIA H100 80GB
-nvidia-h100-80gb asia-northeast3-a NVIDIA H100 80GB
-nvidia-h100-80gb asia-northeast3-c NVIDIA H100 80GB
-nvidia-h100-80gb us-west4-a NVIDIA H100 80GB
-nvidia-h100-80gb northamerica-northeast2-c NVIDIA H100 80GB
 nvidia-h100-80gb us-east7-b NVIDIA H100 80GB
 nvidia-h100-80gb us-east5-a NVIDIA H100 80GB
 
@@ -214,6 +191,19 @@ gcloud storage buckets add-iam-policy-binding gs://BUCKET_NAME \
 kubectl apply -f manifests/gcs-fuse.yaml -n app-gcs-fuse
 ```
 
+### Anywhere cache
+
+Create anywhere cache for the storage bucket
+In this example we are using the storage bucket gs://data-bucket34
+
+```shell
+gcloud storage buckets anywhere-caches create gs://data-bucket34 us-east1-b us-east1-c
+```
+
+```shell
+gcloud storage buckets anywhere-caches list gs://data-bucket34
+```
+
 ### Install run-ai components
 
 ### Pre-requistes
@@ -240,19 +230,6 @@ kubectl create secret docker-registry runai-reg-creds --docker-server=https://ru
 ```shell
 kubectl create namespace runai-backend
 kubectl apply -f runai-reg-creds.yaml
-```
-
-### Anywhere cache
-
-Create anywhere cache for the storage bucket
-In this example we are using the storage bucket gs://data-bucket34
-
-```shell
-gcloud storage buckets anywhere-caches create gs://data-bucket34 us-east1-b us-east1-c
-```
-
-```shell
-gcloud storage buckets anywhere-caches list gs://data-bucket34
 ```
 
 ### Install the Control Plane
