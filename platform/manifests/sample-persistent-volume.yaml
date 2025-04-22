@@ -9,7 +9,7 @@ spec:
   resources:
     requests:
       storage: 30Gi
-  storageClassName: local-storage
+  storageClassName: standard-rwo
 ---
 kind: Pod
 apiVersion: v1

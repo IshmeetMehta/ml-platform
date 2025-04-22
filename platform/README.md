@@ -43,18 +43,77 @@ Step 4: Add the GPU node pool with the h200 (A3) machine type and NVIDIA drivers
 
 Replace gpu-pool with your desired name for the GPU node pool. Adjust the --node-count and other parameters as needed. Ensure the zone supports the chosen machine type and GPU accelerators.
 
+Locations for H100
+
+NAME ZONE DESCRIPTION
+nvidia-h100-80gb us-central1-a NVIDIA H100 80GB
+nvidia-h100-80gb us-central1-b NVIDIA H100 80GB
+nvidia-h100-80gb us-central1-c NVIDIA H100 80GB
+nvidia-h100-80gb europe-west1-b NVIDIA H100 80GB
+nvidia-h100-80gb europe-west1-c NVIDIA H100 80GB
+nvidia-h100-80gb us-west1-a NVIDIA H100 80GB
+nvidia-h100-80gb us-west1-b NVIDIA H100 80GB
+nvidia-h100-80gb asia-east1-c NVIDIA H100 80GB
+nvidia-h100-80gb asia-northeast1-b NVIDIA H100 80GB
+nvidia-h100-80gb asia-southeast1-b NVIDIA H100 80GB
+nvidia-h100-80gb asia-southeast1-c NVIDIA H100 80GB
+nvidia-h100-80gb us-east4-a NVIDIA H100 80GB
+nvidia-h100-80gb us-east4-b NVIDIA H100 80GB
+nvidia-h100-80gb us-east4-c NVIDIA H100 80GB
+nvidia-h100-80gb australia-southeast1-c NVIDIA H100 80GB
+nvidia-h100-80gb europe-west2-b NVIDIA H100 80GB
+nvidia-h100-80gb europe-west3-c NVIDIA H100 80GB
+nvidia-h100-80gb europe-west3-a NVIDIA H100 80GB
+nvidia-h100-80gb asia-south1-c NVIDIA H100 80GB
+nvidia-h100-80gb europe-west4-c NVIDIA H100 80GB
+nvidia-h100-80gb europe-west4-b NVIDIA H100 80GB
+nvidia-h100-80gb europe-north1-c NVIDIA H100 80GB
+nvidia-h100-80gb asia-northeast3-a NVIDIA H100 80GB
+nvidia-h100-80gb asia-northeast3-c NVIDIA H100 80GB
+nvidia-h100-80gb us-west4-a NVIDIA H100 80GB
+nvidia-h100-80gb northamerica-northeast2-c NVIDIA H100 80GB
+nvidia-h100-80gb us-east7-b NVIDIA H100 80GB
+nvidia-h100-80gb us-east5-a NVIDIA H100 80GB
+
 ```shell
 gcloud container node-pools create gpu-pool \
     --cluster=YOUR_CLUSTER_NAME \
     --project=PROJECT_ID \
     --accelerator type=nvidia-h100-80gb,count=8,gpu-driver-version=latest  \
     --location=REGION \
+    --node-locations=<REGION-a> \
+    --machine-type=a3-highgpu-8g \
+    --node-count=1 \
+```
+
+Locations for h200
+
+NAME ZONE DESCRIPTION
+nvidia-h200-141gb us-central1-b NVIDIA H200 141GB
+nvidia-h200-141gb europe-west1-b NVIDIA H200 141GB
+nvidia-h200-141gb us-west1-c NVIDIA H200 141GB
+nvidia-h200-141gb us-east4-b NVIDIA H200 141GB
+nvidia-h200-141gb us-east7-c NVIDIA H200 141GB
+nvidia-h200-141gb us-east5-a NVIDIA H200 141GB
+
+```shell
+gcloud container node-pools create gpu-pool \
+    --cluster=YOUR_CLUSTER_NAME \
+    --project=PROJECT_ID \
+    --accelerator type=nvidia-h200-141gb,count=8,gpu-driver-version=latest  \
+    --location=REGION \
     --node-locations=REGION-a \
     --machine-type=a3-highgpu-8g \
     --node-count=1 \
 ```
 
-Note: The h200 machine type is likely part of the A3 series. The example uses a3-highgpu-8g which features NVIDIA H100 GPUs. Update the --machine-type and --accelerator flags based on the actual H200 configuration and availability in your chosen zone.
+Note: The h200 machine type is part of the A3 series. Update the --machine-type and --accelerator flags based on the actual H100/H200 configuration and availability in your chosen zone.
+
+Important Considerations:
+
+Verify the availability of the h200 (or its equivalent A3 series) machine type and GPU accelerators in your chosen zone.
+GKE manages NVIDIA driver compatibility. Rely on GKE's mechanisms for driver management.
+Test any manual upgrades in a non-production environment first.
 
 Step 5: Get the credentials for your new cluster
 
@@ -102,103 +161,70 @@ gcloud container node-pools upgrade gpu-pool \
     --node-version=latest
 ```
 
-### Mounting a GCS Bucket
+### Persistent Volumes for GKE Cluster
 
-<TODO> Update these instructions to show how to mount GCS bucket on GKE cluster.
+The manifest `sample-persistent-volume.yaml` describes a request for a disk with 30 gibibytes (GiB) of storage whose access mode allows it to be mounted as read-write by a single node. It also creates a Pod that consumes the PersistentVolumeClaim as a volume.
+
+When you create this PersistentVolumeClaim object, Kubernetes dynamically creates a corresponding PersistentVolume object.
+
+Because the storage class standard-rwo uses volume binding mode WaitForFirstConsumer, the PersistentVolume will not be created until a Pod is scheduled to consume the volume.
+
+```shell
+kubectl apply -f sample-persistent-volume.yaml
+```
+
+```shell
+kubectl get pv
+```
+
+### Mounting a GCS Bucket
 
 1. Create a GCS bucket (if you haven't already).
 
 ```shell
-gsutil mb -p <YOUR_PROJECT_ID> gs://<YOUR_BUCKET_NAME>
+gsutil mb -p <YOUR_PROJECT_ID> gs://data-bucket34 # Change to your bucket-name
 ```
 
 2. Mount the bucket using the gcsfuse-csi-driver addon.
 
-After creating the cluster, you can deploy workloads that utilize the GCS FUSE CSI driver to mount GCS buckets. Here are example manifests:
-
-PersistentVolumeClaim (PVC) - gcs-pvc.yaml:
-
-YAML
+Create a namespace
 
 ```shell
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: gcs-volume-claim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
-  storageClassName: gcsfuse
-  volumeMode: Filesystem
+kubectl create namespace app-gcs-fuse
 ```
 
-Pod Definition - gcs-pod.yaml:
-
-YAML
+Create a service account
 
 ```shell
-apiVersion: v1
-kind: Pod
-metadata:
-  name: gcs-pod
-spec:
-  containers:
-    - name: my-container
-      image: ubuntu:latest
-      command: ["sleep", "infinity"]
-      volumeMounts:
-        - name: gcs-volume
-          mountPath: /mnt/gcs
-  volumes:
-    - name: gcs-volume
-      persistentVolumeClaim:
-        claimName: gcs-volume-claim
+kubectl create serviceaccount gcs-sa \
+    --namespace app-gcs-fuse
 ```
 
-Apply these manifests using kubectl apply -f <filename>.yaml.
+Grant roles to the service account to access GCS fuse bucket
 
-Important Considerations:
+roles/storage.objectUser or roles/storage.objectViewer
 
-Verify the availability of the h200 (or its equivalent A3 series) machine type and GPU accelerators in your chosen zone.
-GKE manages NVIDIA driver compatibility. Rely on GKE's mechanisms for driver management.
-Test any manual upgrades in a non-production environment first.
+```shell
+gcloud storage buckets add-iam-policy-binding gs://BUCKET_NAME \
+    --member "principal://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/PROJECT_ID.svc.id.goog/subject/ns/app-gcs-fuse/sa/gcs-sa" \
+    --role "ROLE_NAME"
+```
+
+```shell
+kubectl apply -f manifests/gcs-fuse.yaml -n app-gcs-fuse
+```
 
 ### Install run-ai components
 
 ### Pre-requistes
 
-1.
-
-```shell
-kubectl apply -f manifests/storageclass-local.yaml
-```
-
-```shell
-kubectl patch storageclass local-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-```
-
-```shell
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pvc-cluster-storage
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 110Gi
-  storageClassName: local-storage
-
-```
+1. Runai control plane requires a default storage class for the runai-backend namespace.
+   Check you default storage class for the GKE cluster.
 
 2. Apply token registry-creds to the cluster .
 
 Note: Apply your registry-creds as per the instruction provided by Nvidia
+Set the `TOKEN` provided by the NVIDIA team
 
 ```shell
 TOKEN= ''
@@ -209,11 +235,24 @@ kubectl create namespace runai-backend
 kubectl create secret docker-registry runai-reg-creds --docker-server=https://runai.jfrog.io --docker-username=self-hosted-image-puller-prod --docker-password=$TOKEN --docker-email=support@run.ai --namespace=runai-backend
 ```
 
-(Optional) Use below commands if you are story the registry creds in the yaml file
+(Optional) Use below commands if you have the registry creds stored in the yaml file
 
 ```shell
 kubectl create namespace runai-backend
 kubectl apply -f runai-reg-creds.yaml
+```
+
+### Anywhere cache
+
+Create anywhere cache for the storage bucket
+In this example we are using the storage bucket gs://data-bucket34
+
+```shell
+gcloud storage buckets anywhere-caches create gs://data-bucket34 us-east1-b us-east1-c
+```
+
+```shell
+gcloud storage buckets anywhere-caches list gs://data-bucket34
 ```
 
 ### Install the Control Plane
@@ -229,34 +268,69 @@ You would see run-ai components being spinned up in the runai-backend namespace.
 
 ```shell
  kubectl get pods -n runai-backend
-NAME                                                   READY   STATUS              RESTARTS   AGE
-keycloak-0                                             0/1     Pending             0          25s
-runai-backend-assets-service-8fc8fc676-tmc6j           0/1     Init:0/1            0          25s
-runai-backend-audit-service-5769656dcb-68rbw           0/1     Init:0/1            0          21s
-runai-backend-authorization-6d6788b4d5-rvlft           0/1     Init:0/1            0          24s
-runai-backend-backend-74888f9-hw85q                    0/1     Init:0/2            0          24s
-runai-backend-cli-exposer-57ff744bb8-gxz7z             1/1     Running             0          21s
-runai-backend-cluster-service-98567c5b4-zgq7s          0/1     Pending             0          21s
-runai-backend-datavolumes-69b7bfb5c5-vc4mb             0/1     Init:0/1            0          20s
-runai-backend-frontend-766d7f89b7-q4m8k                0/1     ContainerCreating   0          20s
-runai-backend-grafana-67fb7f88b-spqjh                  0/2     Init:0/1            0          25s
-runai-backend-identity-manager-9f5dbf669-pn9pk         0/1     Init:0/1            0          25s
-runai-backend-k8s-objects-tracker-7b8cc8cbfc-jrvgj     0/1     Init:0/1            0          20s
-runai-backend-metrics-service-756b4b9d4d-hqg5m         0/1     Init:0/2            0          22s
-runai-backend-notifications-proxy-95f7964b9-9d2tc      1/1     Running             0          24s
-runai-backend-notifications-service-5d7c5574d8-k6tzh   0/1     Init:0/1            0          25s
-runai-backend-org-unit-helper-5bb4cb657-5cxqv          0/1     Pending             0          20s
-runai-backend-org-unit-service-86b78df47b-cgnf2        0/1     Init:0/1            0          24s
-runai-backend-policy-service-57db4f7455-vk558          0/1     Pending             0          20s
-runai-backend-postgresql-0                             0/1     Pending             0          25s
-runai-backend-redis-queue-master-0                     0/1     Pending             0          25s
-runai-backend-redoc-777c6f6c96-8q2q2                   1/1     Running             0          20s
-runai-backend-tenants-manager-6dc567c474-2jzhm         0/2     Pending             0          19s
-runai-backend-thanos-query-6bd5b84576-krm8j            0/1     Running             0          21s
-runai-backend-thanos-receive-0                         0/1     Pending             0          25s
-runai-backend-traefik-5974bccfbc-65cvd                 0/1     Pending             0          20s
-runai-backend-workloads-7cfdff78b9-mcgfh               0/1     Init:0/1            0          25s
-runai-backend-workloads-helper-6486784bcd-kzbdx        0/1     Init:0/1            0          20s
+NAME                                                   READY   STATUS    RESTARTS        AGE
+keycloak-0                                             1/1     Running   0               4m1s
+runai-backend-assets-service-69757fb9b-9kpwk           1/1     Running   0               4m8s
+runai-backend-audit-service-64656cb78d-bd6vd           1/1     Running   0               4m8s
+runai-backend-authorization-68c7dd5c9c-fvzf7           1/1     Running   0               4m7s
+runai-backend-backend-7bd5c44dbc-ljfdl                 1/1     Running   1 (2m18s ago)   4m7s
+runai-backend-cli-exposer-54c987bfb-xz5mt              1/1     Running   0               4m7s
+runai-backend-cluster-service-5c6654c44d-9fqt6         1/1     Running   0               4m6s
+runai-backend-datavolumes-6565f68bb7-p6sf2             1/1     Running   0               4m6s
+runai-backend-frontend-7847d46d75-rxvzc                1/1     Running   0               4m6s
+runai-backend-grafana-5f79564466-zxb6v                 2/2     Running   0               4m9s
+runai-backend-identity-manager-75c4cb4c85-m4wmc        1/1     Running   0               4m5s
+runai-backend-k8s-objects-tracker-77b7d6ddcc-wpkxr     1/1     Running   0               4m5s
+runai-backend-metrics-service-7695f654fb-9tphz         1/1     Running   0               4m5s
+runai-backend-notifications-proxy-64fcdb76b5-wvjml     1/1     Running   0               4m5s
+runai-backend-notifications-service-59c98bc5d4-rvrzq   1/1     Running   0               4m9s
+runai-backend-org-unit-helper-bc5769db9-h6jvm          1/1     Running   0               4m4s
+runai-backend-org-unit-service-59896fd86d-6gml8        1/1     Running   0               4m4s
+runai-backend-policy-service-7795d7ff47-q7wxv          1/1     Running   0               4m4s
+runai-backend-postgresql-0                             1/1     Running   0               4m1s
+runai-backend-redis-queue-master-0                     1/1     Running   0               4m1s
+runai-backend-redoc-5cb54888dd-2trjd                   1/1     Running   0               4m4s
+runai-backend-tenants-manager-6c68774f78-6v6lq         2/2     Running   0               4m3s
+runai-backend-thanos-query-6d5bb46576-qpx24            1/1     Running   0               4m9s
+runai-backend-thanos-receive-0                         1/1     Running   0               4m1s
+runai-backend-traefik-5c8b5c845f-w8sfd                 1/1     Running   0               4m3s
+runai-backend-workloads-5c8ffb647c-4chpj               1/1     Running   0               4m2s
+runai-backend-workloads-helper-7dc686b4c4-5p5cv        1/1     Running   0               4m2s
+
+```
+
+```shell
+kubectl get svc -n runai-backend
+NAME                                  TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                               AGE
+keycloak-headless                     ClusterIP   None             <none>        80/TCP                                17h
+keycloak-http                         ClusterIP   34.118.239.156   <none>        80/TCP,8443/TCP                       17h
+runai-backend-assets-service          ClusterIP   34.118.236.177   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-audit-service           ClusterIP   34.118.228.117   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-authorization           ClusterIP   34.118.226.169   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-backend                 ClusterIP   34.118.226.65    <none>        7000/TCP                              17h
+runai-backend-cli-exposer             ClusterIP   34.118.235.180   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-cluster-service         ClusterIP   34.118.232.175   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-datavolumes             ClusterIP   34.118.232.145   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-frontend                ClusterIP   34.118.236.42    <none>        8080/TCP                              17h
+runai-backend-grafana                 ClusterIP   34.118.229.30    <none>        80/TCP                                17h
+runai-backend-identity-manager        ClusterIP   34.118.236.26    <none>        8080/TCP,9090/TCP                     17h
+runai-backend-k8s-objects-tracker     ClusterIP   34.118.233.147   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-metrics-service         ClusterIP   34.118.239.34    <none>        8080/TCP,9090/TCP                     17h
+runai-backend-notifications-proxy     ClusterIP   34.118.229.83    <none>        8080/TCP,9090/TCP                     17h
+runai-backend-notifications-service   ClusterIP   34.118.225.198   <none>        5000/TCP,9093/TCP,9090/TCP,8080/TCP   17h
+runai-backend-org-unit-service        ClusterIP   34.118.236.103   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-policy-service          ClusterIP   34.118.235.103   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-postgresql              ClusterIP   34.118.231.222   <none>        5432/TCP                              17h
+runai-backend-postgresql-hl           ClusterIP   None             <none>        5432/TCP                              17h
+runai-backend-redis-queue-master      ClusterIP   34.118.228.208   <none>        6379/TCP                              17h
+runai-backend-redis-queue-master-hl   ClusterIP   None             <none>        6379/TCP                              17h
+runai-backend-redoc                   ClusterIP   34.118.237.29    <none>        8080/TCP                              17h
+runai-backend-tenants-manager         ClusterIP   34.118.228.245   <none>        8080/TCP,9090/TCP                     17h
+runai-backend-thanos-query            ClusterIP   34.118.239.67    <none>        9090/TCP                              17h
+runai-backend-thanos-query-grpc       ClusterIP   34.118.229.119   <none>        10901/TCP                             17h
+runai-backend-thanos-receive          ClusterIP   34.118.232.91    <none>        10902/TCP,10901/TCP,19291/TCP         17h
+runai-backend-traefik                 ClusterIP   34.118.236.138   <none>        8080/TCP,9100/TCP                     17h
+runai-backend-workloads               ClusterIP   34.118.235.90    <none>        8080/TCP,9090/TCP                     17h
 ```
 
 ### Install the run-ai cluster
