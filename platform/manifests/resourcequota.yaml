@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gcp-critical-pods
+  namespace: gpu-operator
+spec:
+  hard:
+    pods: "10" # Example: Limit the number of critical pods to 10
+  scopeSelector:
+    matchExpressions:
+    - operator: In
+      scopeName: PriorityClass
+      values:
+      - system-node-critical
+      - system-cluster-critical

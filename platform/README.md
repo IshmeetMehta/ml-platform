@@ -44,6 +44,7 @@ Step 4: Add the GPU node pool with the h200 (A3) machine type and NVIDIA drivers
 Replace gpu-pool with your desired name for the GPU node pool. Adjust the --node-count and other parameters as needed. Ensure the zone supports the chosen machine type and GPU accelerators.
 
 Locations for H100
+<format-table>
 
 NAME ZONE DESCRIPTION
 nvidia-h100-80gb us-east4-a NVIDIA H100 80GB
@@ -65,6 +66,7 @@ gcloud container node-pools create gpu-pool \
 
 Locations for h200
 
+<format-table>
 NAME ZONE DESCRIPTION
 nvidia-h200-141gb us-central1-b NVIDIA H200 141GB
 nvidia-h200-141gb europe-west1-b NVIDIA H200 141GB
@@ -311,3 +313,56 @@ runai-backend-workloads               ClusterIP   34.118.235.90    <none>       
 ```
 
 ### Install the run-ai cluster
+
+Pre-requistes
+
+1. Run:ai cluster requires Kubernetes Ingress Controller to be installed on the Kubernetes cluster.
+
+```shell
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install nginx-ingress ingress-nginx/ingress-nginx     --namespace nginx-ingress --create-namespace
+```
+
+2. Run:ai Cluster requires NVIDIA GPU Operator to be installed on the Kubernetes Cluster, supports version 22.9 to 24.6
+
+Note : Nvidia drivers get installed when creating the GPU nodepool above
+
+```shell
+kubectl create ns gpu-operator
+kubectl apply -f resourcequota.yaml -n gpu-operator
+kubectl label --overwrite ns gpu-operator pod-security.kubernetes.io/enforce=privileged
+helm install --wait --generate-name     -n gpu-operator --create-namespace     nvidia/gpu-operator     --version=v25.3.0 --set driver.enabled=false
+```
+
+3. Run:ai Cluster requires Prometheus to be installed on the Kubernetes cluster.
+
+```shell
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install prometheus prometheus-community/kube-prometheus-stack     -n monitoring --create-namespace --set grafana.enabled=false
+```
+
+4. installation is the Kubeflow Training Operator.
+
+```shell
+ kubectl apply -k "github.com/kubeflow/training-operator.git/manifests/overlays/standalone?ref=v1.7.0"
+```
+
+5. Inference on runai cluster requires the Knative Serving framework to be installed on the cluster and supports Knative versions 1.10 to 1.15
+
+```shell
+kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.17.0/serving-crds.yaml
+kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.17.0/serving-core.yaml
+kubectl patch configmap/config-autoscaler   --namespace knative-serving   --type merge   --patch '{"data":{"enable-scale-to-zero":"true"}}' && kubectl patch configmap/config-features   --namespace knative-serving   --type merge   --patch '{"data":{"kubernetes.podspec-schedulername":"enabled","kubernetes.podspec-affinity":"enabled","kubernetes.podspec-tolerations":"enabled","kubernetes.podspec-volumes-emptydir":"enabled","kubernetes.podspec-securitycontext":"enabled","kubernetes.podspec-persistent-volume-claim":"enabled","kubernetes.podspec-persistent-volume-write":"enabled","multi-container":"enabled","kubernetes.podspec-init-containers":"enabled"}}'
+```
+
+5. Choose an appropriate domain name for the cluster
+
+6. Install the run:ai Cluster
+
+In the Run:ai platform, go to Clusters
+Click +NEW CLUSTER
+Enter a unique name for your cluster
+Optional: Chose the Run:ai cluster version (latest, by default)
+Enter the Cluster URL
