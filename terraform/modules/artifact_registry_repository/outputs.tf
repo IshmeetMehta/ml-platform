@@ -12,21 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  configsync_repository = module.configsync_repository
-  configsync_image      = null
-  git_repository        = replace(local.configsync_repository.html_url, "/https*:\\/\\//", "")
+output "http_clone_url" {
+  value = "${google_artifact_registry_repository.repository.location}-docker.pkg.dev/${google_artifact_registry_repository.repository.project}/${google_artifact_registry_repository.repository.name}"
 }
 
-module "configsync_repository" {
-  source = "../terraform/modules/github_repository"
+output "location" {
+  value = google_artifact_registry_repository.repository.location
+}
 
-  branches = {
-    default = "main"
-    names   = ["main"]
-  }
-  description = "MLP Config Sync repository for ${var.environment_name} environment"
-  name        = "${var.configsync_repo_name}-${var.environment_name}"
-  owner       = var.git_namespace
-  token       = var.git_token
+output "name" {
+  value = google_artifact_registry_repository.repository.name
+}
+
+output "project" {
+  value = google_artifact_registry_repository.repository.project
+}
+
+output "repo" {
+  value = google_artifact_registry_repository.repository
 }

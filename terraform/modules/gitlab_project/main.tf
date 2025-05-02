@@ -12,21 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  configsync_repository = module.configsync_repository
-  configsync_image      = null
-  git_repository        = replace(local.configsync_repository.html_url, "/https*:\\/\\//", "")
+data "gitlab_group" "group" {
+  full_path = var.group_full_path
 }
 
-module "configsync_repository" {
-  source = "../terraform/modules/github_repository"
+resource "gitlab_project" "project" {
+  name             = var.project_name
+  default_branch   = var.branches.default
+  description      = var.description
+  namespace_id     = data.gitlab_group.group.id
+  visibility_level = var.visibility_level
+}
 
-  branches = {
-    default = "main"
-    names   = ["main"]
-  }
-  description = "MLP Config Sync repository for ${var.environment_name} environment"
-  name        = "${var.configsync_repo_name}-${var.environment_name}"
-  owner       = var.git_namespace
-  token       = var.git_token
+resource "gitlab_branch" "branch" {
+  for_each = toset(setsubtract(var.branches.names, ["main"]))
+
+  name    = each.value
+  project = gitlab_project.project.id
+  ref     = "main"
 }

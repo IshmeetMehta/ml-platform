@@ -34,8 +34,8 @@ locals {
 
 module "configsync_repository" {
   depends_on = [google_container_cluster.mlp]
-  
-  source = "../../../terraform/modules/artifact_registry_repository"
+
+  source = "../terraform/modules/artifact_registry_repository"
 
   format        = "DOCKER"
   location      = var.region

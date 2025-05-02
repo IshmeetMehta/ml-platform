@@ -12,21 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-locals {
-  configsync_repository = module.configsync_repository
-  configsync_image      = null
-  git_repository        = replace(local.configsync_repository.html_url, "/https*:\\/\\//", "")
+output "branch_names" {
+  value = var.branches.names
 }
 
-module "configsync_repository" {
-  source = "../terraform/modules/github_repository"
+output "branches" {
+  value = var.branches.names
+}
 
-  branches = {
-    default = "main"
-    names   = ["main"]
-  }
-  description = "MLP Config Sync repository for ${var.environment_name} environment"
-  name        = "${var.configsync_repo_name}-${var.environment_name}"
-  owner       = var.git_namespace
-  token       = var.git_token
+output "default_branch" {
+  value = var.branches.default
+}
+
+output "full_name" {
+  value = github_repository.repo.full_name
+}
+
+output "html_url" {
+  value = github_repository.repo.html_url
+}
+
+output "http_clone_url" {
+  value = github_repository.repo.http_clone_url
+}
+
+output "repo" {
+  value = github_repository.repo
 }

@@ -52,8 +52,8 @@ Console.**
 - Clone the repository and change directory to the guide directory
 
   ```
-  git clone https://github.com/GoogleCloudPlatform/accelerated-platforms && \
-  cd accelerated-platforms
+  git clone https://github.com/IshmeetMehta/ml-platform.git && \
+  cd ml-platforms
   ```
 
 - Set environment variables
@@ -64,7 +64,7 @@ Console.**
   ```
 
   ```
-  cd platforms/gke-aiml/playground && \
+  cd playground && \
   export MLP_TYPE_BASE_DIR=$(pwd) && \
   sed -n -i -e '/^export MLP_TYPE_BASE_DIR=/!p' -i -e '$aexport MLP_TYPE_BASE_DIR="'"${MLP_TYPE_BASE_DIR}"'"' ${HOME}/.bashrc
   ```
@@ -275,17 +275,17 @@ you.**
 - Go to [APIs & Services](https://console.cloud.google.com/apis/dashboard?) >
   [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)
   configuration page.
-- Select **Internal** for the **User Type**
-- Click **CREATE**
 - Enter **IAP Secured Application** for the the **App name**
 - Enter an email address for the **User support email**
+- Select **Internal** for the **User Type**
 - Enter an email address for the **Developer contact information**
+- Click **CREATE**
 - Click **SAVE AND CONTINUE**
 - Leave the default values for **Scopes**
 - Click **SAVE AND CONTINUE**
 - On the **Summary** page, click **BACK TO DASHBOARD**
 - The **OAuth consent screen** should now look like this:
-  ![oauth consent screen](/docs/platforms/gke-aiml/playground/images/oauth-consent-screen.png)
+  ![oauth consent screen](/playground/docs/images/oauth-consent-screen.png)
 
 ### Default IAP access
 

@@ -19,7 +19,7 @@ locals {
 }
 
 module "configsync_repository" {
-  source = "../../../terraform/modules/gitlab_project"
+  source = "../terraform/modules/gitlab_project"
 
   branches = {
     default = "main"

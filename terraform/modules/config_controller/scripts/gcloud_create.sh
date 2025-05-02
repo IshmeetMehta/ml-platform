@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 # Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,22 +13,34 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+set -u
 
-locals {
-  configsync_repository = module.configsync_repository
-  configsync_image      = null
-  git_repository        = replace(local.configsync_repository.html_url, "/https*:\\/\\//", "")
-}
+SCRIPT_PATH="$(
+  cd "$(dirname "$0")" >/dev/null 2>&1
+  pwd -P
+)"
 
-module "configsync_repository" {
-  source = "../terraform/modules/github_repository"
+command=(gcloud anthos config controller create "${NAME}")
 
-  branches = {
-    default = "main"
-    names   = ["main"]
-  }
-  description = "MLP Config Sync repository for ${var.environment_name} environment"
-  name        = "${var.configsync_repo_name}-${var.environment_name}"
-  owner       = var.git_namespace
-  token       = var.git_token
-}
+if [ ! -z "${FULL_MANAGEMENT}" ]; then
+    command+=(--full-management)
+fi
+
+if [ ! -z "${LOCATION}" ]; then
+    command+=(--location=${LOCATION})
+fi
+
+if [ ! -z "${NETWORK}" ]; then
+    command+=(--network=${NETWORK})
+fi
+
+if [ ! -z "${PROJECT_ID}" ]; then
+    command+=(--project=${PROJECT_ID})
+fi
+
+if [ ! -z "${SUBNET}" ]; then
+    command+=(--subnet=${SUBNET})
+fi
+
+echo "${command[@]}"
+"${command[@]}"
